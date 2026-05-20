@@ -381,7 +381,7 @@ var handCanvas = document.getElementById('hand-overlay');
 var hc = handCanvas.getContext('2d');
 var gc = canvas.getContext('2d');
 var W=390, H=720, Q=1;
-var scale=1, offX=0, offY=0;
+var scale=1, offX=0, offY=0, wrapLeft=0, wrapTop=0;
 var MAP_TOP=54, MAP_H=608, MAP_W=390;
 
 function updateMapBounds(){
@@ -448,11 +448,13 @@ function resize(){
       chrome.style.width=W+'px'; chrome.style.height=H+'px';
       chrome.style.left=pL+'px'; chrome.style.top=pT+'px';
     }
+    wrapLeft=pL; wrapTop=pT;
     wrap.style.left=pL+'px'; wrap.style.top=pT+'px';
     wrap.style.borderRadius='38px'; wrap.style.overflow='hidden';
     document.body.style.background='#0d0d0d';
   } else {
     W=vw; H=vh;
+    wrapLeft=0; wrapTop=0;
     if(chrome) chrome.style.display='none';
     wrap.style.left='0px'; wrap.style.top='0px';
     wrap.style.borderRadius=''; wrap.style.overflow='';
@@ -1065,7 +1067,7 @@ function moveHandTo(x,y,dur,cb){
 // ============================================================
 var dg=document.getElementById('drag-ghost');
 
-function canvasToGame(cx,cy){ return {x:(cx-offX)/scale, y:(cy-offY)/scale}; }
+function canvasToGame(cx,cy){ return {x:(cx-wrapLeft-offX)/scale, y:(cy-wrapTop-offY)/scale}; }
 
 function startDrag(type,cx,cy){
   if(G.phase==='cta') return;
@@ -1208,7 +1210,7 @@ function updateTutorial(dt){
   var slot=document.getElementById('ds-plant');
   var r=slot.getBoundingClientRect();
   // Slot center in canvas coords (wrap is at 0,0)
-  var sx=r.left+r.width/2, sy=r.top+r.height/2;
+  var sx=r.left+r.width/2-wrapLeft, sy=r.top+r.height/2-wrapTop;
   // Target: valid grass zone near path entry
   // Target: grass zone near bottom path segment (between Start and Turn 1)
   var tx=MAP_W*0.38, ty=MAP_H*0.72;
