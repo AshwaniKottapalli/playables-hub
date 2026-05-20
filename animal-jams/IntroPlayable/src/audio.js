@@ -1,27 +1,41 @@
 let ctx = null;
 const buffers = {};
 const queue = [];
-let unlocked = false;
+
+function _flush() {
+  if (ctx?.state !== 'running') return;
+  queue.forEach(fn => fn());
+  queue.length = 0;
+}
+
+function _resume() {
+  if (!ctx || ctx.state === 'running') return;
+  ctx.resume();
+}
 
 export function init() {
   ctx = new (window.AudioContext || window.webkitAudioContext)();
-  const unlock = () => {
-    if (unlocked) return;
-    ctx.resume().then(() => {
-      unlocked = true;
-      queue.forEach(n => n());
-      queue.length = 0;
-    });
-  };
+
+  // Drain queue whenever context starts running
+  ctx.addEventListener('statechange', _flush);
+
+  // Resume on any user gesture — NOT once:true so Safari re-suspends are handled
   ['pointerdown', 'touchstart', 'keydown'].forEach(e =>
-    document.addEventListener(e, unlock, { once: true })
+    document.addEventListener(e, _resume)
   );
+
+  // Resume when tab regains visibility (Safari suspends on background)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') _resume();
+  });
 }
 
 export async function loadFile(name, url) {
-  const res = await fetch(url);
-  const arrayBuf = await res.arrayBuffer();
-  buffers[name] = await ctx.decodeAudioData(arrayBuf);
+  try {
+    const res = await fetch(url);
+    const arrayBuf = await res.arrayBuffer();
+    buffers[name] = await ctx.decodeAudioData(arrayBuf);
+  } catch (e) {}
 }
 
 export function play(name, { loop = false, volume = 1 } = {}) {
@@ -42,10 +56,10 @@ export function play(name, { loop = false, volume = 1 } = {}) {
   if (!ctx) return;
   if (ctx.state === 'running') return run();
   queue.push(run);
+  _resume();
 }
 
 export function tone(freq, duration, type = 'sine', volume = 0.3) {
-  if (!ctx) return;
   const run = () => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -57,6 +71,8 @@ export function tone(freq, duration, type = 'sine', volume = 0.3) {
     osc.start();
     osc.stop(ctx.currentTime + duration);
   };
+  if (!ctx) return;
   if (ctx.state === 'running') return run();
   queue.push(run);
+  _resume();
 }
