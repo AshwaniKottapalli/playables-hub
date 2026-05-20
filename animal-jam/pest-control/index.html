@@ -107,9 +107,14 @@ body.hook-active #boss-vignette,
 body.intro-active #hud,
 body.intro-active #install-btn,
 body.intro-active #mute-btn{opacity:0!important;pointer-events:none!important;transition:opacity .4s ease}
+/* --- Desktop / landscape: phone-frame shell --- */
+#phone-chrome{display:none;position:fixed;pointer-events:none;z-index:999;border-radius:44px;box-shadow:0 0 0 10px #1a1a1a,0 0 0 13px #333,0 28px 80px rgba(0,0,0,.85);border:1.5px solid #2a2a2a}
+#phone-chrome::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:30%;height:24px;background:#111;border-radius:0 0 14px 14px;z-index:1}
+#phone-chrome::after{content:'';position:absolute;bottom:7px;left:50%;transform:translateX(-50%);width:28%;height:4px;background:rgba(255,255,255,.2);border-radius:2px;z-index:1}
 </style>
 </head>
 <body>
+<div id="phone-chrome"></div>
 <div id="wrap">
   <canvas id="game"></canvas>
   <canvas id="hand-overlay" style="position:absolute;top:0;left:0;pointer-events:none;z-index:60"></canvas>
@@ -426,7 +431,33 @@ function scaleHUD(){
 }
 
 function resize(){
-  W=window.innerWidth; H=window.innerHeight;
+  var vw=window.innerWidth, vh=window.innerHeight;
+  var isDesktop=(vw>vh)||(vw>=768&&vh>=500);
+  var chrome=document.getElementById('phone-chrome');
+  var wrap=document.getElementById('wrap');
+  if(isDesktop){
+    // Portrait phone frame: 390:844 aspect ratio
+    var pH=vh*0.88;
+    var pW=pH*(390/844);
+    if(pW>vw*0.6){pW=vw*0.6;pH=pW*(844/390);}
+    W=Math.floor(pW); H=Math.floor(pH);
+    var pL=Math.floor((vw-W)/2);
+    var pT=Math.floor((vh-H)/2);
+    if(chrome){
+      chrome.style.display='block';
+      chrome.style.width=W+'px'; chrome.style.height=H+'px';
+      chrome.style.left=pL+'px'; chrome.style.top=pT+'px';
+    }
+    wrap.style.left=pL+'px'; wrap.style.top=pT+'px';
+    wrap.style.borderRadius='38px'; wrap.style.overflow='hidden';
+    document.body.style.background='#0d0d0d';
+  } else {
+    W=vw; H=vh;
+    if(chrome) chrome.style.display='none';
+    wrap.style.left='0px'; wrap.style.top='0px';
+    wrap.style.borderRadius=''; wrap.style.overflow='';
+    document.body.style.background='';
+  }
   scale=1; offX=0; offY=0;
   Q = Math.max(W/390, H/720);
   updateMapBounds();
@@ -435,9 +466,7 @@ function resize(){
   handCanvas.style.width=W+'px'; handCanvas.style.height=H+'px';
   canvas.style.width=W+'px'; canvas.style.height=H+'px';
   canvas.style.left='0px'; canvas.style.top='0px';
-  var wrap=document.getElementById('wrap');
   wrap.style.width=W+'px'; wrap.style.height=H+'px';
-  wrap.style.left='0px'; wrap.style.top='0px';
   wrap.style.transform='none';
   scaleHUD();
   if(typeof buildPath==='function') buildPath();
