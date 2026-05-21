@@ -69,12 +69,12 @@ export const CONFIG = {
 
   // Game icon cards — real Animal Jam game images
   gameCards: [
-    { title: 'Best Dressed',      image: 'assets/ui/games/best_dressed.png'    },
-    { title: 'Roll!!!!!',         image: 'assets/ui/games/roll.png'             },
-    { title: 'Pest Control',      image: 'assets/ui/games/pest_control.png'     },
-    { title: "A Puppy's Tale",    image: 'assets/ui/games/puppys_tale.png'      },
-    { title: 'Fast Foodies',      image: 'assets/ui/games/fast_foodies.png'     },
-    { title: 'Temple of Trivia',  image: 'assets/ui/games/temple_of_trivia.png' },
+    { title: 'Best Dressed',      image: 'assets/ui/games/best_dressed.webp'    },
+    { title: 'Roll!!!!!',         image: 'assets/ui/games/roll.webp'             },
+    { title: 'Pest Control',      image: 'assets/ui/games/pest_control.webp'     },
+    { title: "A Puppy's Tale",    image: 'assets/ui/games/puppys_tale.webp'      },
+    { title: 'Fast Foodies',      image: 'assets/ui/games/fast_foodies.webp'     },
+    { title: 'Temple of Trivia',  image: 'assets/ui/games/temple_of_trivia.webp' },
   ],
   carouselScrollSpeed: 140, // px per second (snappier)
   carouselDuration:    8,   // seconds before CTA (slightly longer for new layout)
