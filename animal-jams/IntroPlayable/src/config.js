@@ -22,6 +22,7 @@ export const CONFIG = {
       atlases: ['texture-pet1-1', 'texture-pet1-2'],
       sound: 'assets/audio/pet-1-sound.mp3',
       headOffsets: [0, 0, 0],
+      tiltMultiplier: 0.35,
       accessories: [
         { label: 'Flowers',  topShift: [2,   0,  -36], sideShift: [-7, -10, -11], scale: 1.0 },
         { label: 'Visor',    topShift: [-17, -16, -71], sideShift: [-1,  -7,  -2], scale: 1.0 },
@@ -34,6 +35,7 @@ export const CONFIG = {
       atlases: ['texture-pet2-1', 'texture-pet2-2'],
       sound: 'assets/audio/pet-2-sound.mp3',
       headOffsets: [0, 0, 0],
+      tiltMultiplier: 0.35,
       accessories: [
         { label: 'Tiki Hat', topShift: [11,   2,  -8], sideShift: [-5, -13,  -5], scale: 0.87 },
         { label: 'Pharaoh',  topShift: [-22, -18, -34], sideShift: [-5,  -9,  -5], scale: 1.0 },
@@ -46,6 +48,7 @@ export const CONFIG = {
       atlases: ['texture-pet3-1', 'texture-pet3-2'],
       sound: 'assets/audio/pet-3-sound.mp3',
       headOffsets: [0, 0, 0],
+      tiltMultiplier: -0.55,
       accessories: [
         { label: 'Glasses',    topShift: [-28, -20, -49], sideShift: [-7, -7,  3], scale: 1.0 },
         { label: 'Unicorn',    topShift: [17,   27,  -7], sideShift: [-7, -5,  4], scale: 1.0 },
@@ -57,9 +60,9 @@ export const CONFIG = {
   // 3 colors match the actual idle-1 / idle-2 / idle-3 sprite variants:
   // idle-1 = natural/tan, idle-2 = warm brown/orange, idle-3 = dark red
   colors: [
-    { id: 'natural', label: 'Natural', sprite: 'color_bezj.png',  hex: '#d4b483', idleVariant: 1 },
-    { id: 'brown',   label: 'Brown',   sprite: 'color_brown.png',  hex: '#8b5e3c', idleVariant: 2 },
-    { id: 'red',     label: 'Red',     sprite: 'color_red.png',    hex: '#e05050', idleVariant: 3 },
+    { id: 'natural', label: 'Natural', sprite: 'color_bezj.jpg',  hex: '#d4b483', idleVariant: 1 },
+    { id: 'brown',   label: 'Brown',   sprite: 'color_brown.jpg',  hex: '#8b5e3c', idleVariant: 2 },
+    { id: 'red',     label: 'Red',     sprite: 'color_red.jpg',    hex: '#e05050', idleVariant: 3 },
   ],
 
   anim: {
@@ -72,12 +75,12 @@ export const CONFIG = {
 
   // Game icon cards — real Animal Jam game images
   gameCards: [
-    { title: 'Best Dressed',      image: 'assets/ui/games/best_dressed.png'    },
-    { title: 'Roll!!!!!',         image: 'assets/ui/games/roll.png'             },
-    { title: 'Pest Control',      image: 'assets/ui/games/pest_control.png'     },
-    { title: "A Puppy's Tale",    image: 'assets/ui/games/puppys_tale.png'      },
-    { title: 'Fast Foodies',      image: 'assets/ui/games/fast_foodies.png'     },
-    { title: 'Temple of Trivia',  image: 'assets/ui/games/temple_of_trivia.png' },
+    { title: 'Best Dressed',      image: 'assets/ui/games/best_dressed.jpg'    },
+    { title: 'Roll!!!!!',         image: 'assets/ui/games/roll.jpg'             },
+    { title: 'Pest Control',      image: 'assets/ui/games/pest_control.jpg'     },
+    { title: "A Puppy's Tale",    image: 'assets/ui/games/puppys_tale.jpg'      },
+    { title: 'Fast Foodies',      image: 'assets/ui/games/fast_foodies.jpg'     },
+    { title: 'Temple of Trivia',  image: 'assets/ui/games/temple_of_trivia.jpg' },
   ],
   carouselScrollSpeed: 140, // px per second (snappier)
   carouselDuration:    8,   // seconds before CTA (slightly longer for new layout)

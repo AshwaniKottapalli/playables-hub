@@ -24,9 +24,13 @@ export function init() {
     document.addEventListener(e, _resume)
   );
 
-  // Resume when tab regains visibility (Safari suspends on background)
+  // Suspend when hidden, resume when visible (spec + Safari compliance)
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') _resume();
+    if (document.visibilityState === 'hidden') {
+      ctx.suspend();
+    } else {
+      _resume();
+    }
   });
 }
 
