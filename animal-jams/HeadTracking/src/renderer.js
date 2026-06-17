@@ -91,7 +91,7 @@ export class PetRenderer {
       // Use centroid-based head offsets if available, otherwise fall back to sss nudge
       let extraX = 0, extraY = 0;
       if (this._headOffsets?.[this._frame]) {
-        extraX =  this._headOffsets[this._frame].dx * scale;
+        extraX = -this._headOffsets[this._frame].dx * scale;
         extraY =  this._headOffsets[this._frame].dy * scale;
       } else {
         extraY = (fd.spriteSourceSize?.y ?? 0) * scale;
