@@ -196,7 +196,7 @@ export class Game {
       'assets/texture-backgrounds-1.jpeg',
       'assets/texture-backgrounds-2.jpeg',
       'assets/ui/logotype.png',
-      'assets/generated/boxSprite_fixed.png',
+      'assets/generated/boxSprite_fixed.webp',
       ...CONFIG.gameCards.map(c => c.image),
     ];
     const total = atlasNames.length + imgAssets.length;
@@ -211,8 +211,11 @@ export class Game {
     [this._bgImg, this._bgCtaImg, this._logoImg, this._boxSpriteImg] = imgResults;
     this._gameImgs = imgResults.slice(4);
 
-    Object.entries(CONFIG.audio).forEach(([n, u]) => Audio.loadFile(n, u).catch(() => {}));
-    CONFIG.pets.forEach((p, i) => Audio.loadFile(`pet-${i + 1}`, p.sound).catch(() => {}));
+    // Defer audio — load after game starts so it doesn't compete with atlases
+    setTimeout(() => {
+      Object.entries(CONFIG.audio).forEach(([n, u]) => Audio.loadFile(n, u).catch(() => {}));
+      CONFIG.pets.forEach((p, i) => Audio.loadFile(`pet-${i + 1}`, p.sound).catch(() => {}));
+    }, 500);
 
     this._toBoxReveal();
     requestAnimationFrame(ts => this._loop(ts));
@@ -846,7 +849,7 @@ export class Game {
           () => tween(this._acc.orbScales, { [i]: 1 }, 0.12, Ease.easeOutCubic));
         this._renderer.playAnim(this.petId, `idle-${this.colorIdx + 1}`);
         
-        this._renderer.playAccessory(this.petId, i);
+        this._renderer.playAccessory(this.petId, i, this.colorIdx);
         this._particles.emit(ARC_ORB_X[i], this._acc.orbCys[i], 10,
           { kind: 'sparkle', color: '#ffe066', speed: 200, size: 12, lifetime: 0.6 });
         Audio.play('suction', { volume: 0.7 });
@@ -956,6 +959,7 @@ export class Game {
       // Label below bubble
       ctx.font = `bold 20px ${B.font}`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
       ctx.lineWidth = 4; ctx.strokeStyle = B.darkBrown;
       ctx.strokeText(labels[i], 0, BUBBLE_R + 6);
       ctx.fillStyle = isSelected ? B.orange : '#fff';
@@ -982,7 +986,7 @@ export class Game {
     this._renderer.cy    = this._floorCy(2.0);
     this._renderer.scale = 2.0;
     this._renderer.playAnim(this.petId, `idle-${this.colorIdx + 1}`);
-    if (this.accIdx >= 0) this._renderer.playAccessory(this.petId, this.accIdx);
+    if (this.accIdx >= 0) this._renderer.playAccessory(this.petId, this.accIdx, this.colorIdx);
     else this._renderer.stopAccessory();
 
     this._carousel = {
@@ -1101,7 +1105,9 @@ export class Game {
     ctx.fill();
 
     ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-    ctx.clip(); // everything inside stays rounded
+    ctx.beginPath();
+    _roundedRectPath(ctx, x, y, W, H, 20);
+    ctx.clip();
 
     if (gameImg) {
       // Full-bleed game image — fills entire card
@@ -1169,7 +1175,7 @@ export class Game {
     this._renderer.cy    = CH + 300;   // off-screen bottom
     this._renderer.scale = 0.4;
     this._renderer.playAnim(this.petId, `idle-${this.colorIdx + 1}`);
-    if (this.accIdx >= 0) this._renderer.playAccessory(this.petId, this.accIdx);
+    if (this.accIdx >= 0) this._renderer.playAccessory(this.petId, this.accIdx, this.colorIdx);
 
     // Jump tween — smaller scale so pet sits on the rug, not towering above it
     const finalCy = this._floorCy(1.4);
@@ -1333,6 +1339,8 @@ function _drawBrandText(ctx, text, x, y, size, strokeColor, fillColor, fontFace)
   ctx.font = `bold ${size}px ${fontFace ?? CONFIG.brand.font}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  ctx.lineCap  = 'round';
   const lw = Math.ceil(size * 0.22);
 
   // 3D depth: dark shadow offset layer first
@@ -1417,10 +1425,14 @@ function _drawCardBgStyle(ctx, style, x, y, w, h, baseColor) {
  */
 function _drawGameIconMini(ctx, img, x, y, size) {
   ctx.save();
+  // Draw shadow on the base rect before clipping
   ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 5;
   ctx.beginPath(); _roundedRectPath(ctx, x, y, size, size, 18);
   ctx.fillStyle = '#1a1a2e'; ctx.fill();
-  ctx.shadowBlur = 0; ctx.clip();
+  // Clear shadow then clip so it doesn't bleed onto the image
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.beginPath(); _roundedRectPath(ctx, x, y, size, size, 18);
+  ctx.clip();
   if (img) ctx.drawImage(img, x, y, size, size);
   ctx.restore();
 }
