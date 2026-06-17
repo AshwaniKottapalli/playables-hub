@@ -48,7 +48,7 @@ export const CONFIG = {
       atlases: ['texture-pet3-1', 'texture-pet3-2'],
       sound: 'assets/audio/pet-3-sound.mp3',
       headOffsets: [0, 0, 0],
-      tiltMultiplier: 0.35,
+      tiltMultiplier: 0.55,
       accessories: [
         { label: 'Glasses',    topShift: [-28, -20, -49], sideShift: [-7, -7,  3] },
         { label: 'Unicorn',    topShift: [17,   27,  -7], sideShift: [-7, -5,  4] },
