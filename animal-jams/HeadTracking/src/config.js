@@ -22,6 +22,7 @@ export const CONFIG = {
       atlases: ['texture-pet1-1', 'texture-pet1-2'],
       sound: 'assets/audio/pet-1-sound.mp3',
       headOffsets: [0, 0, 0],
+      tiltMultiplier: 0.35,
       accessories: [
         { label: 'Flowers',  topShift: [2,   0,  -36], sideShift: [-7, -10, -11] },
         { label: 'Visor',    topShift: [-17, -16, -71], sideShift: [-1,  -7,  -2] },
@@ -47,6 +48,7 @@ export const CONFIG = {
       atlases: ['texture-pet3-1', 'texture-pet3-2'],
       sound: 'assets/audio/pet-3-sound.mp3',
       headOffsets: [0, 0, 0],
+      tiltMultiplier: 0.35,
       accessories: [
         { label: 'Glasses',    topShift: [-28, -20, -49], sideShift: [-7, -7,  3] },
         { label: 'Unicorn',    topShift: [17,   27,  -7], sideShift: [-7, -5,  4] },
