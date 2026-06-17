@@ -45,9 +45,13 @@ export class PetRenderer {
     this._accTopShift  = Array.isArray(acc?.topShift)  ? (acc.topShift[vi]  ?? 0) : (acc?.topShift  ?? 0);
     this._accSideShift = Array.isArray(acc?.sideShift) ? (acc.sideShift[vi] ?? 0) : (acc?.sideShift ?? 0);
     this._accScale     = acc?.scale ?? 1.0;
+    this._accTiltMult  = pet?.tiltMultiplier ?? 0;
   }
 
   stopAccessory() { this._accAnim = null; }
+
+  // headOffsets: array of {dx, dy} per idle frame (from head-offsets.json)
+  setHeadOffsets(offsets) { this._headOffsets = offsets || null; }
 
   update(dt) {
     if (!this._anim || this.paused) return;
@@ -84,13 +88,18 @@ export class PetRenderer {
     // stay registered to the same pivot point (0.5, 0.5 of sourceSize).
     _drawAnchored(ctx, fd, cx, cy, scale);
 
-    // Draw accessory: use settled last frame, nudge vertically by the pet
-    // frame's own sss.y so the accessory tracks the head's idle micro-movement.
     if (this._accAnim?.length) {
       const afd = this._accAnim[this._accAnim.length - 1];
-      const petSssY = fd.spriteSourceSize?.y ?? 0;
-      const petSssX = fd.spriteSourceSize?.x ?? 0;
-      if (afd) _drawAccessoryAnchored(ctx, afd, fd, cx, cy, scale, this._accHeadShift || 0, this._accTopShift || 0, petSssY * scale, -petSssX * scale, this._accSideShift || 0, 0, this._accScale ?? 1.0);
+      let extraX = 0, extraY = 0;
+      if (this._headOffsets?.[this._frame]) {
+        extraX = -this._headOffsets[this._frame].dx * scale;
+        extraY =  this._headOffsets[this._frame].dy * scale;
+      } else {
+        extraY = (fd.spriteSourceSize?.y ?? 0) * scale;
+        extraX = -(fd.spriteSourceSize?.x ?? 0) * scale;
+      }
+      const tilt = -(this._headOffsets?.[this._frame]?.rot ?? 0) * (this._accTiltMult || 0);
+      if (afd) _drawAccessoryAnchored(ctx, afd, fd, cx, cy, scale, this._accHeadShift || 0, this._accTopShift || 0, extraY, extraX, this._accSideShift || 0, tilt, this._accScale ?? 1.0);
     }
   }
 
@@ -167,16 +176,21 @@ function _drawAccessoryAnchored(ctx, afd, petFd, cx, cy, scale, headOffset = 0, 
   const dx = baseDx + (dw / accScale - dw) / 2;
   const dy = baseDy + (dh / accScale - dh) / 2;
 
+  // Pivot point for tilt rotation: center-bottom of accessory (sits on head)
+  const pivotX = dx + dw / 2;
+  const pivotY = dy + dh;
+
+  ctx.save();
+  if (tilt) { ctx.translate(pivotX, pivotY); ctx.rotate(tilt); ctx.translate(-pivotX, -pivotY); }
+
   if (!afd.rotated) {
     ctx.drawImage(afd.image, afd.frame.x, afd.frame.y, afd.frame.w, afd.frame.h,
       dx, dy, dw, dh);
-    return;
+  } else {
+    ctx.translate(dx + dw / 2, dy + dh / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.drawImage(afd.image, afd.frame.x, afd.frame.y, afd.atlasW, afd.atlasH,
+      -dh / 2, -dw / 2, dh, dw);
   }
-
-  ctx.save();
-  ctx.translate(dx + dw / 2, dy + dh / 2);
-  ctx.rotate(-Math.PI / 2);
-  ctx.drawImage(afd.image, afd.frame.x, afd.frame.y, afd.atlasW, afd.atlasH,
-    -dh / 2, -dw / 2, dh, dw);
   ctx.restore();
 }
