@@ -30,10 +30,6 @@ resize();
 window.addEventListener('resize', resize);
 new ResizeObserver(resize).observe(document.body);
 
-document.fonts.load('bold 32px "Tiki Island"').then(() => {
-  const game = new Game(app);
-  game.start();
-}).catch(() => {
-  const game = new Game(app);
-  game.start();
-});
+// Don't block on font load — canvas falls back to Impact until font is ready
+const game = new Game(app);
+game.start();

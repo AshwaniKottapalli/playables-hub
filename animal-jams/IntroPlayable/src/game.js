@@ -183,37 +183,10 @@ export class Game {
 
     this._show(buildLoadingScreen());
 
-    // ── Phase 1: minimum assets to show box reveal (~3 files) ──────────────
-    const phase1Atlases = [
-      'texture-backgrounds-1',
-      'texture-elements',
-      'texture-particles',
-    ];
-    const phase1Imgs = [
-      'assets/texture-backgrounds-1.jpeg',
-      'assets/generated/boxSprite_fixed.webp',
-    ];
-
-    const p1Total = phase1Atlases.length + phase1Imgs.length;
-    let p1Done = 0;
-    const tick1 = () => setLoadingProgress(++p1Done / p1Total * 0.35); // fill to 35%
-
-    const [, p1Imgs] = await Promise.all([
-      Promise.all(phase1Atlases.map(n => loadAtlas(n).then(r => { tick1(); return r; }))),
-      Promise.all(phase1Imgs.map(u => loadImg(u).catch(() => null).then(r => { tick1(); return r; }))),
-    ]);
-
-    [this._bgImg, this._boxSpriteImg] = p1Imgs;
-    setLoadingProgress(0.35);
-
-    // Start game immediately — box reveal plays while phase 2 loads in background
-    this._toBoxReveal();
-    requestAnimationFrame(ts => this._loop(ts));
-
-    // ── Phase 2: rest of assets during box reveal animation (~3s window) ───
+    // Kick off ALL background assets immediately (parallel with phase 1)
     const phase2Atlases = [
-      'texture-backgrounds-2',
-      'texture-custom-elements',
+      'texture-backgrounds-1', 'texture-backgrounds-2',
+      'texture-elements', 'texture-custom-elements', 'texture-particles',
       'texture-pet-accessories',
       'texture-pet1-1', 'texture-pet1-2',
       'texture-pet2-1', 'texture-pet2-2',
@@ -224,20 +197,30 @@ export class Game {
       'assets/ui/logotype.png',
       ...CONFIG.gameCards.map(c => c.image),
     ];
-
-    const p2Total = phase2Atlases.length + phase2Imgs.length;
-    let p2Done = 0;
-    const tick2 = () => setLoadingProgress(0.35 + ++p2Done / p2Total * 0.65);
-
-    const [, p2Imgs] = await Promise.all([
-      Promise.all(phase2Atlases.map(n => loadAtlas(n).then(r => { tick2(); return r; }))),
-      Promise.all(phase2Imgs.map(u => loadImg(u).catch(() => null).then(r => { tick2(); return r; }))),
+    const bgLoad = Promise.all([
+      Promise.all(phase2Atlases.map(n => loadAtlas(n).catch(() => {}))),
+      Promise.all(phase2Imgs.map(u => loadImg(u).catch(() => null))),
     ]);
 
+    // ── Phase 1: only 2 files needed to show box (~200KB) ───────────────────
+    const [bgImg, boxImg] = await Promise.all([
+      loadImg('assets/texture-backgrounds-1.jpeg'),
+      loadImg('assets/generated/boxSprite_fixed.webp'),
+    ]);
+    this._bgImg = bgImg;
+    this._boxSpriteImg = boxImg;
+    setLoadingProgress(1);
+
+    // Start immediately
+    this._toBoxReveal();
+    requestAnimationFrame(ts => this._loop(ts));
+
+    // Await phase 2 completion (finishes during box reveal ~3s)
+    const [, p2Imgs] = await bgLoad;
     [this._bgCtaImg, this._logoImg] = p2Imgs;
     this._gameImgs = p2Imgs.slice(2);
 
-    // Audio last — lowest priority
+    // Audio last
     Object.entries(CONFIG.audio).forEach(([n, u]) => Audio.loadFile(n, u).catch(() => {}));
     CONFIG.pets.forEach((p, i) => Audio.loadFile(`pet-${i + 1}`, p.sound).catch(() => {}));
   }
