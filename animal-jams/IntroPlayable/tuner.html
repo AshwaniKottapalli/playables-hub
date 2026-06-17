@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Accessory Tuner</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #1a1a2e; color: #eee; font-family: monospace; display: flex; height: 100vh; overflow: hidden; }
+
+    #sidebar {
+      width: 320px; min-width: 320px; padding: 20px; overflow-y: auto;
+      background: #111; border-right: 1px solid #333; display: flex; flex-direction: column; gap: 16px;
+    }
+
+    #canvas-area {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      background: #2a2a3e;
+    }
+
+    canvas { border: 1px solid #444; }
+
+    h2 { color: #f7941d; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; }
+
+    .group { display: flex; flex-direction: column; gap: 8px; }
+
+    .row { display: flex; align-items: center; gap: 8px; }
+    label { font-size: 12px; color: #aaa; width: 100px; flex-shrink: 0; }
+
+    select, input[type=range] { flex: 1; }
+    select { background: #222; color: #eee; border: 1px solid #444; padding: 4px; border-radius: 4px; }
+
+    input[type=range] { accent-color: #f7941d; }
+
+    .val { font-size: 12px; color: #f7941d; width: 40px; text-align: right; flex-shrink: 0; }
+
+    #output {
+      background: #0d1117; border: 1px solid #333; border-radius: 6px;
+      padding: 12px; font-size: 11px; line-height: 1.8; color: #7ee787;
+      white-space: pre; overflow-x: auto;
+    }
+
+    button {
+      background: #f7941d; color: #000; border: none; padding: 8px 12px;
+      border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px;
+      width: 100%;
+    }
+    button:hover { background: #ffa740; }
+
+    .divider { border-top: 1px solid #333; }
+
+    .note { font-size: 11px; color: #666; line-height: 1.5; }
+  </style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h2>Accessory Tuner</h2>
+
+  <div class="group">
+    <div class="row"><label>Pet</label>
+      <select id="selPet">
+        <option value="0">Cow</option>
+        <option value="1">Fennec (Fox)</option>
+        <option value="2">Seal</option>
+      </select>
+    </div>
+    <div class="row"><label>Color variant</label>
+      <select id="selColor">
+        <option value="0">Natural (idle-1)</option>
+        <option value="1">Brown (idle-2)</option>
+        <option value="2">Red (idle-3)</option>
+      </select>
+    </div>
+    <div class="row"><label>Accessory</label>
+      <select id="selAcc">
+        <option value="0">1 – Flowers / Tiki Hat / Glasses</option>
+        <option value="1">2 – Visor / Pharaoh / Unicorn</option>
+        <option value="2">3 – Bow Tie / Crown / Garden Hat</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="group">
+    <h2>Per-pet headOffset</h2>
+    <p class="note">Shifts accessory up/down relative to pet's sourceSize top.<br>Positive = moves accessory UP.</p>
+    <div class="row">
+      <label id="lblHead">headOffset</label>
+      <input type="range" id="sliderHead" min="-120" max="120" value="0" step="1">
+      <span class="val" id="valHead">0</span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="group">
+    <h2>Per-accessory topShift / sideShift / scale</h2>
+    <p class="note">Positive topShift = UP. Positive sideShift = RIGHT. Scale = size multiplier.</p>
+    <div class="row">
+      <label id="lblShift">topShift</label>
+      <input type="range" id="sliderShift" min="-80" max="80" value="0" step="1">
+      <span class="val" id="valShift">0</span>
+    </div>
+    <div class="row">
+      <label id="lblSide">sideShift</label>
+      <input type="range" id="sliderSide" min="-80" max="80" value="0" step="1">
+      <span class="val" id="valSide">0</span>
+    </div>
+    <div class="row">
+      <label id="lblScale">scale</label>
+      <input type="range" id="sliderScale" min="0.4" max="1.6" value="1.0" step="0.01">
+      <span class="val" id="valScale">1.00</span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="group">
+    <h2>Current values</h2>
+    <div id="output">loading…</div>
+    <button onclick="copyOutput()">Copy to clipboard</button>
+  </div>
+
+  <p class="note">Give these values to Claude to update config.js and renderer.js.</p>
+</div>
+
+<div id="canvas-area">
+  <canvas id="c" width="360" height="640"></canvas>
+</div>
+
+<script type="module">
+import { loadAtlas, getFrame, getFramesByPrefix } from './src/atlas.js';
+import { CONFIG } from './src/config.js';
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const CW = 360, CH = 640;
+
+// State — all values indexed [petIdx][accIdx][variantIdx]
+const state = {
+  petIdx: 0,
+  colorVariant: 0,   // 0=idle-1, 1=idle-2, 2=idle-3
+  accIdx: 0,
+  // headOffsets[petIdx][variantIdx]
+  headOffsets: { 0:[0,0,0], 1:[0,0,0], 2:[0,0,0] },
+  // topShifts[petIdx][accIdx][variantIdx]
+  topShifts:  { 0:{0:[0,0,0],1:[0,0,0],2:[0,0,0]}, 1:{0:[0,0,0],1:[0,0,0],2:[0,0,0]}, 2:{0:[0,0,0],1:[0,0,0],2:[0,0,0]} },
+  sideShifts: { 0:{0:[0,0,0],1:[0,0,0],2:[0,0,0]}, 1:{0:[0,0,0],1:[0,0,0],2:[0,0,0]}, 2:{0:[0,0,0],1:[0,0,0],2:[0,0,0]} },
+  accScales:  { 0:{0:1.0,1:1.0,2:1.0}, 1:{0:1.0,1:1.0,2:1.0}, 2:{0:1.0,1:1.0,2:1.0} },
+};
+
+// Seed from config
+CONFIG.pets.forEach((pet, pi) => {
+  if (pet.headOffsets) pet.headOffsets.forEach((v, vi) => state.headOffsets[pi][vi] = v);
+  pet.accessories.forEach((acc, ai) => {
+    [0,1,2].forEach(vi => {
+      state.topShifts[pi][ai][vi]  = Array.isArray(acc.topShift)  ? (acc.topShift[vi]  ?? 0) : (acc.topShift  ?? 0);
+      state.sideShifts[pi][ai][vi] = Array.isArray(acc.sideShift) ? (acc.sideShift[vi] ?? 0) : (acc.sideShift ?? 0);
+      state.accScales[pi][ai]      = acc.scale ?? 1.0;
+    });
+  });
+});
+
+let petFrames = null, accFrames = null;
+let frameIdx = 0, elapsed = 0, lastTs = null;
+let bgImg = null;
+
+// Load background
+const bg = new Image();
+bg.onload = () => { bgImg = bg; };
+bg.src = './assets/texture-backgrounds-1.jpeg';
+
+async function loadAll() {
+  const pet = CONFIG.pets[state.petIdx];
+  await Promise.all([
+    ...pet.atlases.map(a => loadAtlas(a)),
+    loadAtlas('texture-pet-accessories'),
+  ]);
+  loadFrames();
+  requestAnimationFrame(loop);
+}
+
+function loadFrames() {
+  const pet = CONFIG.pets[state.petIdx];
+  petFrames = getFramesByPrefix(pet.atlases, `${pet.id}-idle-${state.colorVariant + 1}-`);
+  const prefix = `${pet.id}-accessory${state.accIdx + 1}-`;
+  const afs = getFramesByPrefix(['texture-pet-accessories'], prefix);
+  accFrames = afs.map(f => getFrame(f.atlas, f.frame)).filter(Boolean);
+  frameIdx = 0;
+}
+
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(((lastTs ? ts - lastTs : 0)) / 1000, 0.08);
+  lastTs = ts;
+
+  elapsed += dt;
+  const fps = CONFIG.anim.idleFps;
+  if (elapsed >= 1 / fps) {
+    elapsed -= 1 / fps;
+    frameIdx = (frameIdx + 1) % (petFrames?.length || 1);
+  }
+
+  render();
+}
+
+function render() {
+  ctx.clearRect(0, 0, CW, CH);
+
+  // Background
+  if (bgImg) ctx.drawImage(bgImg, 0, 0, CW, CH);
+  else { ctx.fillStyle = '#2a4a2a'; ctx.fillRect(0, 0, CW, CH); }
+
+  // Grid overlay
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 0.5;
+  for (let y = 0; y < CH; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(CW,y); ctx.stroke(); }
+  for (let x = 0; x < CW; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,CH); ctx.stroke(); }
+
+  if (!petFrames?.length) return;
+
+  const cx = CW / 2;
+  const cy = CH * 0.52;
+  const scale = 2.0;
+
+  const fref = petFrames[frameIdx];
+  const fd = getFrame(fref.atlas, fref.frame);
+  if (!fd) return;
+
+  // Draw floor line
+  const floor = cy + (fd.sourceSize.h / 2) * scale;
+  ctx.strokeStyle = 'rgba(255,150,0,0.5)'; ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(0, floor); ctx.lineTo(CW, floor); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Draw pet
+  drawAnchored(ctx, fd, cx, cy, scale);
+
+  // Draw accessory
+  if (accFrames?.length) {
+    const vi = state.colorVariant;
+    const headOffset = state.headOffsets[state.petIdx][vi];
+    const topShift   = state.topShifts[state.petIdx][state.accIdx][vi];
+    const sideShift  = state.sideShifts[state.petIdx][state.accIdx][vi];
+    const accScale   = state.accScales[state.petIdx][state.accIdx];
+    const afd = accFrames[accFrames.length - 1];
+    const petSssY = fd.spriteSourceSize?.y ?? 0;
+    const petSssX = fd.spriteSourceSize?.x ?? 0;
+    drawAccessory(ctx, afd, fd, cx, cy, scale, headOffset, topShift, petSssY * scale, -petSssX * scale, sideShift, accScale);
+  }
+
+  // Labels
+  ctx.fillStyle = 'rgba(255,150,0,0.8)'; ctx.font = '10px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`frame ${frameIdx + 1}/${petFrames.length}`, 8, 16);
+  ctx.fillText(`cy=${Math.round(cy)}  scale=${scale}`, 8, 28);
+}
+
+function drawAnchored(ctx, fd, cx, cy, scale) {
+  const { image, frame, rotated, naturalW, naturalH, atlasW, atlasH, sourceSize } = fd;
+  const dw = naturalW * scale;
+  const dh = naturalH * scale;
+  const dx = cx - dw / 2;
+  const effectiveH = sourceSize.h;
+  const cyFloor = cy + (effectiveH / 2) * scale;
+  const dy = cyFloor - dh;
+
+  if (!rotated) {
+    ctx.drawImage(image, frame.x, frame.y, frame.w, frame.h, dx, dy, dw, dh);
+  } else {
+    ctx.save();
+    ctx.translate(dx + dw/2, dy + dh/2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.drawImage(image, frame.x, frame.y, atlasW, atlasH, -dh/2, -dw/2, dh, dw);
+    ctx.restore();
+  }
+}
+
+function drawAccessory(ctx, afd, petFd, cx, cy, scale, headOffset, topShift, petSssYOffset, petSssXOffset, sideShift, accScale = 1.0) {
+  const petSrcH = petFd.sourceSize.h;
+  const accSrcH = afd.sourceSize.h;
+  const accSrcW = afd.sourceSize.w;
+  const sss = afd.spriteSourceSize;
+  const dw = afd.naturalW * scale * accScale;
+  const dh = afd.naturalH * scale * accScale;
+
+  const baseDx = cx - (accSrcW / 2) * scale + sss.x * scale + (petSssXOffset || 0) + (sideShift || 0) * scale;
+  const baseDy = cy - (petSrcH / 2) * scale + headOffset * scale
+    - (accSrcH / 2) * scale + sss.y * scale - topShift * scale + (petSssYOffset || 0);
+  const dx = baseDx + (dw / accScale - dw) / 2;
+  const dy = baseDy + (dh / accScale - dh) / 2;
+
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  if (!afd.rotated) {
+    ctx.drawImage(afd.image, afd.frame.x, afd.frame.y, afd.frame.w, afd.frame.h, dx, dy, dw, dh);
+  } else {
+    ctx.translate(dx + dw/2, dy + dh/2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.drawImage(afd.image, afd.frame.x, afd.frame.y, afd.atlasW, afd.atlasH, -dh/2, -dw/2, dh, dw);
+  }
+  ctx.restore();
+
+  // Debug: show accessory sourceSize box
+  ctx.strokeStyle = 'rgba(0,200,255,0.4)'; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
+  ctx.strokeRect(dx, dy, dw, dh);
+  ctx.setLineDash([]);
+}
+
+function updateOutput() {
+  const pi = state.petIdx, ai = state.accIdx, vi = state.colorVariant;
+  const pet = CONFIG.pets[pi];
+  const variantNames = ['natural','brown','red'];
+
+  // Current selection summary at top
+  let out = `▶ ${pet.id} · ${pet.accessories[ai]?.label} · ${variantNames[vi]}\n`;
+  out += `  headOffset : ${state.headOffsets[pi][vi]}\n`;
+  out += `  topShift   : ${state.topShifts[pi][ai][vi]}\n`;
+  out += `  sideShift  : ${state.sideShifts[pi][ai][vi]}\n`;
+  out += '\n── full config ─────────────────\n\n';
+
+  CONFIG.pets.forEach((p, pi2) => {
+    out += `${p.id}:\n`;
+    out += `  headOffsets: [${state.headOffsets[pi2].join(', ')}]\n`;
+    p.accessories.forEach((acc, ai2) => {
+      const ts = state.topShifts[pi2][ai2];
+      const ss = state.sideShifts[pi2][ai2];
+      out += `  ${acc.label}:\n`;
+      out += `    topShift:  [${ts.join(', ')}]\n`;
+      out += `    sideShift: [${ss.join(', ')}]\n`;
+      out += `    scale:     ${state.accScales[pi2][ai2].toFixed(2)}\n`;
+    });
+    out += '\n';
+  });
+  document.getElementById('output').textContent = out;
+}
+
+function syncControls() {
+  const pi = state.petIdx, ai = state.accIdx, vi = state.colorVariant;
+  const pet = CONFIG.pets[pi];
+  const accLabel = pet.accessories[ai]?.label || 'acc';
+  const ho = state.headOffsets[pi][vi];
+  const ts = state.topShifts[pi][ai][vi];
+  const ss = state.sideShifts[pi][ai][vi];
+  const sc = state.accScales[pi][ai];
+
+  document.getElementById('sliderHead').value = ho;
+  document.getElementById('valHead').textContent = ho;
+  document.getElementById('sliderShift').value = ts;
+  document.getElementById('valShift').textContent = ts;
+  document.getElementById('sliderSide').value = ss;
+  document.getElementById('valSide').textContent = ss;
+  document.getElementById('sliderScale').value = sc;
+  document.getElementById('valScale').textContent = sc.toFixed(2);
+
+  document.getElementById('lblHead').textContent = `${pet.id} v${vi+1}`;
+  document.getElementById('lblShift').textContent = `${accLabel} v${vi+1}`;
+  document.getElementById('lblSide').textContent  = `${accLabel} v${vi+1}`;
+  document.getElementById('lblScale').textContent = accLabel;
+}
+
+// Controls
+document.getElementById('selPet').addEventListener('change', async e => {
+  state.petIdx = +e.target.value;
+  const pet = CONFIG.pets[state.petIdx];
+  await Promise.all([...pet.atlases.map(a => loadAtlas(a)), loadAtlas('texture-pet-accessories')]);
+  loadFrames(); syncControls(); updateOutput();
+});
+
+document.getElementById('selColor').addEventListener('change', e => {
+  state.colorVariant = +e.target.value; loadFrames(); syncControls(); updateOutput();
+});
+
+document.getElementById('selAcc').addEventListener('change', e => {
+  state.accIdx = +e.target.value; loadFrames(); syncControls(); updateOutput();
+});
+
+document.getElementById('sliderHead').addEventListener('input', e => {
+  state.headOffsets[state.petIdx][state.colorVariant] = +e.target.value;
+  document.getElementById('valHead').textContent = e.target.value;
+  updateOutput();
+});
+
+document.getElementById('sliderShift').addEventListener('input', e => {
+  state.topShifts[state.petIdx][state.accIdx][state.colorVariant] = +e.target.value;
+  document.getElementById('valShift').textContent = e.target.value;
+  updateOutput();
+});
+
+document.getElementById('sliderSide').addEventListener('input', e => {
+  state.sideShifts[state.petIdx][state.accIdx][state.colorVariant] = +e.target.value;
+  document.getElementById('valSide').textContent = e.target.value;
+  updateOutput();
+});
+
+document.getElementById('sliderScale').addEventListener('input', e => {
+  state.accScales[state.petIdx][state.accIdx] = +e.target.value;
+  document.getElementById('valScale').textContent = (+e.target.value).toFixed(2);
+  updateOutput();
+});
+
+window.copyOutput = () => {
+  navigator.clipboard.writeText(document.getElementById('output').textContent);
+  const btn = document.querySelector('button');
+  btn.textContent = 'Copied!';
+  setTimeout(() => btn.textContent = 'Copy to clipboard', 1500);
+};
+
+syncControls();
+updateOutput();
+await loadAll();
+</script>
+</body>
+</html>

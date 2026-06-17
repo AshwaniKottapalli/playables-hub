@@ -21,10 +21,11 @@ export const CONFIG = {
       label: 'Cow',
       atlases: ['texture-pet1-1', 'texture-pet1-2'],
       sound: 'assets/audio/pet-1-sound.mp3',
+      headOffsets: [0, 0, 0],
       accessories: [
-        { label: 'Flowers',  topShift: 0  },
-        { label: 'Visor',    topShift: 0  },
-        { label: 'Bow Tie',  topShift: 0  },
+        { label: 'Flowers',  topShift: [2,   0,  -36], sideShift: [-7, -10, -11], scale: 1.0 },
+        { label: 'Visor',    topShift: [-17, -16, -71], sideShift: [-1,  -7,  -2], scale: 1.0 },
+        { label: 'Bow Tie',  topShift: [1,   0,  -37], sideShift: [0,   0,   7], scale: 1.0 },
       ],
     },
     {
@@ -32,10 +33,11 @@ export const CONFIG = {
       label: 'Fox',
       atlases: ['texture-pet2-1', 'texture-pet2-2'],
       sound: 'assets/audio/pet-2-sound.mp3',
+      headOffsets: [0, 0, 0],
       accessories: [
-        { label: 'Tiki Hat', topShift: 0  },
-        { label: 'Pharaoh',  topShift: -35 }, // shift down so more of crown is visible
-        { label: 'Crown',    topShift: 0  },
+        { label: 'Tiki Hat', topShift: [11,   2,  -8], sideShift: [-5, -13,  -5], scale: 0.87 },
+        { label: 'Pharaoh',  topShift: [-22, -18, -34], sideShift: [-5,  -9,  -5], scale: 1.0 },
+        { label: 'Crown',    topShift: [5,    3,  -8], sideShift: [-7, -11,  -4], scale: 1.0 },
       ],
     },
     {
@@ -43,10 +45,11 @@ export const CONFIG = {
       label: 'Seal',
       atlases: ['texture-pet3-1', 'texture-pet3-2'],
       sound: 'assets/audio/pet-3-sound.mp3',
+      headOffsets: [0, 0, 0],
       accessories: [
-        { label: 'Glasses',    topShift: 0  },
-        { label: 'Unicorn',    topShift: 0  },
-        { label: 'Garden Hat', topShift: 0  },
+        { label: 'Glasses',    topShift: [-28, -20, -49], sideShift: [-7, -7,  3], scale: 1.0 },
+        { label: 'Unicorn',    topShift: [17,   27,  -7], sideShift: [-7, -5,  4], scale: 1.0 },
+        { label: 'Garden Hat', topShift: [2,     9, -13], sideShift: [-8, -4,  6], scale: 1.0 },
       ],
     },
   ],
@@ -69,12 +72,12 @@ export const CONFIG = {
 
   // Game icon cards — real Animal Jam game images
   gameCards: [
-    { title: 'Best Dressed',      image: 'assets/ui/games/best_dressed.webp'    },
-    { title: 'Roll!!!!!',         image: 'assets/ui/games/roll.webp'             },
-    { title: 'Pest Control',      image: 'assets/ui/games/pest_control.webp'     },
-    { title: "A Puppy's Tale",    image: 'assets/ui/games/puppys_tale.webp'      },
-    { title: 'Fast Foodies',      image: 'assets/ui/games/fast_foodies.webp'     },
-    { title: 'Temple of Trivia',  image: 'assets/ui/games/temple_of_trivia.webp' },
+    { title: 'Best Dressed',      image: 'assets/ui/games/best_dressed.png'    },
+    { title: 'Roll!!!!!',         image: 'assets/ui/games/roll.png'             },
+    { title: 'Pest Control',      image: 'assets/ui/games/pest_control.png'     },
+    { title: "A Puppy's Tale",    image: 'assets/ui/games/puppys_tale.png'      },
+    { title: 'Fast Foodies',      image: 'assets/ui/games/fast_foodies.png'     },
+    { title: 'Temple of Trivia',  image: 'assets/ui/games/temple_of_trivia.png' },
   ],
   carouselScrollSpeed: 140, // px per second (snappier)
   carouselDuration:    8,   // seconds before CTA (slightly longer for new layout)

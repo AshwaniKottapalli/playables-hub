@@ -31,16 +31,20 @@ export class PetRenderer {
     this._onComplete = onComplete || null;
   }
 
-  playAccessory(petId, accIndex) {
+  playAccessory(petId, accIndex, colorVariant = 0) {
     const prefix = `${petId}-accessory${accIndex + 1}-`;
     const frames  = getFramesByPrefix(['texture-pet-accessories'], prefix);
     if (!frames.length) { this._accAnim = null; return; }
 
-    // Store all frames so we can sync to the pet's current frame in draw()
     this._accAnim = frames.map(f => getFrame(f.atlas, f.frame)).filter(Boolean);
 
     const pet = CONFIG.pets.find(p => p.id === petId);
-    this._accTopShift = pet?.accessories?.[accIndex]?.topShift ?? 0;
+    const acc = pet?.accessories?.[accIndex];
+    const vi  = colorVariant;
+    this._accHeadShift = pet?.headOffsets?.[vi] ?? 0;
+    this._accTopShift  = Array.isArray(acc?.topShift)  ? (acc.topShift[vi]  ?? 0) : (acc?.topShift  ?? 0);
+    this._accSideShift = Array.isArray(acc?.sideShift) ? (acc.sideShift[vi] ?? 0) : (acc?.sideShift ?? 0);
+    this._accScale     = acc?.scale ?? 1.0;
   }
 
   stopAccessory() { this._accAnim = null; }
@@ -86,7 +90,7 @@ export class PetRenderer {
       const afd = this._accAnim[this._accAnim.length - 1];
       const petSssY = fd.spriteSourceSize?.y ?? 0;
       const petSssX = fd.spriteSourceSize?.x ?? 0;
-      if (afd) _drawAccessoryAnchored(ctx, afd, fd, cx, cy, scale, this._accTopShift || 0, petSssY * scale, -petSssX * scale);
+      if (afd) _drawAccessoryAnchored(ctx, afd, fd, cx, cy, scale, this._accHeadShift || 0, this._accTopShift || 0, petSssY * scale, -petSssX * scale, this._accSideShift || 0, 0, this._accScale ?? 1.0);
     }
   }
 
@@ -115,9 +119,12 @@ function _drawAnchored(ctx, fd, cx, cy, scale) {
   const dw = naturalW * scale;
   const dh = naturalH * scale;
 
-  const dx = cx - dw / 2;
+  // Anchor horizontally to sourceSize.w so content always sits at the same
+  // position within the logical canvas — eliminates frame.w trim variation drift.
+  const sss = fd.spriteSourceSize;
+  const dx = cx - (sourceSize.w / 2) * scale + sss.x * scale;
 
-  const effectiveH = Math.max(sourceSize.w, sourceSize.h);
+  const effectiveH = sourceSize.h;
   const cyFloor    = cy + (effectiveH / 2) * scale;
   const dy         = cyFloor - dh;
 
@@ -144,21 +151,21 @@ function _drawAnchored(ctx, fd, cx, cy, scale) {
  *         - (accSrcH / 2) * scale         ← center the acc source canvas above that
  *         + accSss.y * scale              ← apply the acc's own spriteSourceSize.y
  */
-function _drawAccessoryAnchored(ctx, afd, petFd, cx, cy, scale, topShift = 0, petSssYOffset = 0, petSssXOffset = 0) {
-  const petSrcH = Math.max(petFd.sourceSize.w, petFd.sourceSize.h);
+function _drawAccessoryAnchored(ctx, afd, petFd, cx, cy, scale, headOffset = 0, topShift = 0, petSssYOffset = 0, petSssXOffset = 0, sideShift = 0, tilt = 0, accScale = 1.0) {
+  const petSrcH = petFd.sourceSize.h;
   const accSrcH = afd.sourceSize.h;
   const accSrcW = afd.sourceSize.w;
   const sss     = afd.spriteSourceSize;
 
-  const dw = afd.naturalW * scale;
-  const dh = afd.naturalH * scale;
-  const dx = cx - (accSrcW / 2) * scale + sss.x * scale + petSssXOffset;
-  const dy = cy
-    - (petSrcH / 2) * scale
-    - (accSrcH / 2) * scale
-    + sss.y * scale
-    - topShift * scale
-    + petSssYOffset;
+  const dw = afd.naturalW * scale * accScale;
+  const dh = afd.naturalH * scale * accScale;
+  // Center of where accessory would sit at scale 1.0
+  const baseDx = cx - (accSrcW / 2) * scale + sss.x * scale + petSssXOffset + sideShift * scale;
+  const baseDy = cy - (petSrcH / 2) * scale + headOffset * scale
+    - (accSrcH / 2) * scale + sss.y * scale - topShift * scale + petSssYOffset;
+  // Adjust position so accScale shrinks/grows from the center of the accessory
+  const dx = baseDx + (dw / accScale - dw) / 2;
+  const dy = baseDy + (dh / accScale - dh) / 2;
 
   if (!afd.rotated) {
     ctx.drawImage(afd.image, afd.frame.x, afd.frame.y, afd.frame.w, afd.frame.h,
