@@ -180,45 +180,66 @@ export class Game {
   // ── Boot ──────────────────────────────────────────────────────────────────
   async start() {
     Audio.init();
-    const atlasNames = [
-      'texture-backgrounds-1', 'texture-backgrounds-2',
-      'texture-elements', 'texture-custom-elements', 'texture-particles',
+
+    this._show(buildLoadingScreen());
+
+    // ── Phase 1: minimum assets to show box reveal (~3 files) ──────────────
+    const phase1Atlases = [
+      'texture-backgrounds-1',
+      'texture-elements',
+      'texture-particles',
+    ];
+    const phase1Imgs = [
+      'assets/texture-backgrounds-1.jpeg',
+      'assets/generated/boxSprite_fixed.webp',
+    ];
+
+    const p1Total = phase1Atlases.length + phase1Imgs.length;
+    let p1Done = 0;
+    const tick1 = () => setLoadingProgress(++p1Done / p1Total * 0.35); // fill to 35%
+
+    const [, p1Imgs] = await Promise.all([
+      Promise.all(phase1Atlases.map(n => loadAtlas(n).then(r => { tick1(); return r; }))),
+      Promise.all(phase1Imgs.map(u => loadImg(u).catch(() => null).then(r => { tick1(); return r; }))),
+    ]);
+
+    [this._bgImg, this._boxSpriteImg] = p1Imgs;
+    setLoadingProgress(0.35);
+
+    // Start game immediately — box reveal plays while phase 2 loads in background
+    this._toBoxReveal();
+    requestAnimationFrame(ts => this._loop(ts));
+
+    // ── Phase 2: rest of assets during box reveal animation (~3s window) ───
+    const phase2Atlases = [
+      'texture-backgrounds-2',
+      'texture-custom-elements',
       'texture-pet-accessories',
       'texture-pet1-1', 'texture-pet1-2',
       'texture-pet2-1', 'texture-pet2-2',
       'texture-pet3-1', 'texture-pet3-2',
     ];
-
-    this._show(buildLoadingScreen());
-
-    // Load all atlases + images in parallel; update progress bar as each resolves
-    const imgAssets = [
-      'assets/texture-backgrounds-1.jpeg',
+    const phase2Imgs = [
       'assets/texture-backgrounds-2.jpeg',
       'assets/ui/logotype.png',
-      'assets/generated/boxSprite_fixed.webp',
       ...CONFIG.gameCards.map(c => c.image),
     ];
-    const total = atlasNames.length + imgAssets.length;
-    let done = 0;
-    const tick = () => setLoadingProgress(++done / total);
 
-    const [atlasResults, imgResults] = await Promise.all([
-      Promise.all(atlasNames.map(n => loadAtlas(n).then(r => { tick(); return r; }))),
-      Promise.all(imgAssets.map(u => loadImg(u).catch(() => null).then(r => { tick(); return r; }))),
+    const p2Total = phase2Atlases.length + phase2Imgs.length;
+    let p2Done = 0;
+    const tick2 = () => setLoadingProgress(0.35 + ++p2Done / p2Total * 0.65);
+
+    const [, p2Imgs] = await Promise.all([
+      Promise.all(phase2Atlases.map(n => loadAtlas(n).then(r => { tick2(); return r; }))),
+      Promise.all(phase2Imgs.map(u => loadImg(u).catch(() => null).then(r => { tick2(); return r; }))),
     ]);
 
-    [this._bgImg, this._bgCtaImg, this._logoImg, this._boxSpriteImg] = imgResults;
-    this._gameImgs = imgResults.slice(4);
+    [this._bgCtaImg, this._logoImg] = p2Imgs;
+    this._gameImgs = p2Imgs.slice(2);
 
-    // Defer audio — load after game starts so it doesn't compete with atlases
-    setTimeout(() => {
-      Object.entries(CONFIG.audio).forEach(([n, u]) => Audio.loadFile(n, u).catch(() => {}));
-      CONFIG.pets.forEach((p, i) => Audio.loadFile(`pet-${i + 1}`, p.sound).catch(() => {}));
-    }, 500);
-
-    this._toBoxReveal();
-    requestAnimationFrame(ts => this._loop(ts));
+    // Audio last — lowest priority
+    Object.entries(CONFIG.audio).forEach(([n, u]) => Audio.loadFile(n, u).catch(() => {}));
+    CONFIG.pets.forEach((p, i) => Audio.loadFile(`pet-${i + 1}`, p.sound).catch(() => {}));
   }
 
   // ── Main loop ─────────────────────────────────────────────────────────────
