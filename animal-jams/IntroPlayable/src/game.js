@@ -752,7 +752,7 @@ export class Game {
 
     // Next button
     const isLc = CW > CH;
-    const [nxL, nxR, nyT, nyB] = isLc ? [CW-300, CW-40, CH-125, CH-59] : [CW/2-120, CW/2+120, 950, 1056];
+    const [nxL, nxR, nyT, nyB] = isLc ? [CW-285, CW-95, Math.round(CH*0.73), Math.round(CH*0.73)+84] : [CW/2-120, CW/2+120, 950, 1056];
     if (x >= nxL && x <= nxR && y >= nyT && y <= nyB) {
       Audio.play('timpani', { volume: 0.5 });
       this._petFlash = 1.0;
@@ -871,7 +871,7 @@ export class Game {
     const isLd = CW > CH;
     if (isLd) {
       _drawBrandText(ctx, 'Pick a color!', CW - 200, 140, 28, B.darkBrown, '#ffffff');
-      drawFrame(ctx, 'texture-elements', 'btn-next.png', CW - 300, CH - 125, 260, 66);
+      drawFrame(ctx, 'texture-elements', 'btn-next.png', CW - 285, Math.round(CH * 0.73), 190, 84);
     } else {
       _drawBrandText(ctx, 'Pick a color!', CW/2, ARC_ORB_Y[1] - 118, 30, B.darkBrown, '#ffffff');
       drawFrame(ctx, 'texture-elements', 'btn-next.png', CW/2 - 120, 950, 240, 106);
@@ -931,7 +931,7 @@ export class Game {
 
     // Adopt button
     const isLat = CW > CH;
-    const [axL, axR, ayT, ayB] = isLat ? [CW-300, CW-40, CH-125, CH-59] : [CW/2-120, CW/2+120, 950, 1056];
+    const [axL, axR, ayT, ayB] = isLat ? [CW-285, CW-95, Math.round(CH*0.73), Math.round(CH*0.73)+84] : [CW/2-120, CW/2+120, 950, 1056];
     if (x >= axL && x <= axR && y >= ayT && y <= ayB) {
       Audio.play('timpani', { volume: 0.5 });
       this._petFlash = 1.0;
@@ -1046,7 +1046,7 @@ export class Game {
     const isLacc = CW > CH;
     if (isLacc) {
       _drawBrandText(ctx, 'Pick an accessory!', CW - 200, 140, 28, B.darkBrown, '#ffffff');
-      drawFrame(ctx, 'texture-elements', 'btn-adopt.png', CW - 300, CH - 125, 260, 66);
+      drawFrame(ctx, 'texture-elements', 'btn-adopt.png', CW - 285, Math.round(CH * 0.73), 190, 84);
     } else {
       _drawBrandText(ctx, 'Pick an accessory!', CW/2, ARC_ORB_Y[1] - 118, 30, B.darkBrown, '#ffffff');
       drawFrame(ctx, 'texture-elements', 'btn-adopt.png', CW/2 - 120, 950, 240, 106);
@@ -1290,7 +1290,8 @@ export class Game {
     if (isLct) {
       // Landscape: game grid right, button left column
       if (x >= 860 && y >= 255 && y <= 560) { this._doInstall(); return; }
-      if (x >= 82 && x <= 462 && y >= 358 && y <= 426) { this._doInstall(); return; }
+      // Button region computed from block layout (approximate safe area)
+      if (x >= 60 && x <= 440 && y >= CH*0.52 && y <= CH*0.72) { this._doInstall(); return; }
     } else {
       if (y >= 840 && y <= 1120) { this._doInstall(); return; }
       if (x >= CW/2 - 210 && x <= CW/2 + 210 && y >= 1135 && y <= 1205) { this._doInstall(); return; }
@@ -1329,31 +1330,38 @@ export class Game {
       // Layout: LEFT col (text) | CENTER (pet) | RIGHT col (game grid)
       // Button: bottom-center, large + prominent
 
-      // ── LEFT COLUMN — evenly spaced, consistent 18px gaps ──────────────────
-      // Logo: y=82, h=118 → bottom=200
+      // ── LEFT COLUMN — centered both horizontally (x=250) and vertically ─────
+      const LC = 250;
+      // Block: logo(126) + gap(14) + badge(28) + gap(14) + text1(26) + gap(10) + text2(34) + gap(14) + btn(64)
+      const BLOCK_H = 126 + 14 + 28 + 14 + 26 + 10 + 34 + 14 + 64; // = 330
+      const y0 = Math.round((CH - BLOCK_H) / 2); // vertically centered start
+
+      const logoW = 190, logoH = 126;
       if (this._logoImg) {
         ctx.save();
         ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 10;
-        ctx.drawImage(this._logoImg, 82, 82, 180, 118);
+        ctx.drawImage(this._logoImg, LC - logoW/2, y0, logoW, logoH);
         ctx.restore();
       }
-      // Badge: top=218 (18px gap after logo)
-      _drawSocialProofBadge(ctx, 162, 232);
-      // Tagline 1: y=266 (18px gap after badge bottom ≈248)
+      const badgeY = y0 + 126 + 14 + 14;       // logo + gap + badge_half
+      _drawSocialProofBadge(ctx, LC, badgeY);
+
+      const t1Y = badgeY + 14 + 14 + 13;        // badge_half + gap + text_half
       ctx.save();
-      ctx.font = `bold 22px ${CONFIG.brand.fontDimbo}`;
-      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.font = `bold 21px ${CONFIG.brand.fontDimbo}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.lineWidth = 3; ctx.strokeStyle = B.darkBrown; ctx.lineJoin = 'round';
-      ctx.strokeText('Adopt, Explore, Decorate & Play', 82, 266);
+      ctx.strokeText('Adopt, Explore, Decorate & Play', LC, t1Y);
       ctx.fillStyle = '#ffffff';
-      ctx.fillText('Adopt, Explore, Decorate & Play', 82, 266);
+      ctx.fillText('Adopt, Explore, Decorate & Play', LC, t1Y);
       ctx.restore();
-      // Tagline 2: y=302 (36px gap = line height)
+
+      const t2Y = t1Y + 13 + 10 + 17;           // text1_half + gap + text2_half
       ctx.save();
-      ctx.font = `bold 32px ${CONFIG.brand.fontDimbo}`;
-      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = B.darkBrown;
-      ctx.fillText(`Games with YOUR ${petLabel}!`, 82, 304);
+      ctx.font = `bold 30px ${CONFIG.brand.fontDimbo}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = B.orange;
+      ctx.fillText(`Games with YOUR ${petLabel}!`, LC, t2Y);
       ctx.restore();
 
       // Pet — centered
@@ -1374,8 +1382,9 @@ export class Game {
         }
       }
 
-      // Play for Free! — left column, y=358 (18px gap after tagline 2 bottom≈320+16=336+18=354)
-      const btnW = 380, btnX = 82, btnY = 358, btnH = 68;
+      // Play for Free! — centered in column, directly below text2
+      const btnH = 64, btnW = 380, btnX = LC - btnW/2;
+      const btnY = t2Y + 17 + 14;               // text2_half + gap
       const pulse_l = 1 + Math.sin(this._ctaElapsed * 3.5) * 0.04;
       ctx.save();
       ctx.translate(btnX + btnW/2, btnY + btnH/2); ctx.scale(pulse_l, pulse_l); ctx.translate(-(btnX + btnW/2), -(btnY + btnH/2));
