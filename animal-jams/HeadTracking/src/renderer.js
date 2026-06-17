@@ -98,7 +98,7 @@ export class PetRenderer {
         extraY = (fd.spriteSourceSize?.y ?? 0) * scale;
         extraX = -(fd.spriteSourceSize?.x ?? 0) * scale;
       }
-      const tilt = (this._headOffsets?.[this._frame]?.rot ?? 0) * (this._accTiltMult || 0);
+      const tilt = -(this._headOffsets?.[this._frame]?.rot ?? 0) * (this._accTiltMult || 0);
       if (afd) _drawAccessoryAnchored(ctx, afd, fd, cx, cy, scale, this._accHeadShift || 0, this._accTopShift || 0, extraY, extraX, this._accSideShift || 0, tilt);
     }
   }
