@@ -687,6 +687,7 @@ export class Game {
         tween(this._color.orbScales, { [i]: 1.28 }, 0.14, Ease.easeOutBack,
           () => tween(this._color.orbScales, { [i]: 1 }, 0.12, Ease.easeOutCubic));
         this._renderer.playAnim(this.petId, `idle-${i + 1}`);
+        this._applyHeadOffsets(this.petId, i);
         this._renderer.paused = false; // animate — head/tail movement
         this._particles.emit(ARC_ORB_X[i], this._color.orbCys[i], 10,
           { kind: 'sparkle', color: CONFIG.colors[i].hex, speed: 180, size: 12, lifetime: 0.6 });
