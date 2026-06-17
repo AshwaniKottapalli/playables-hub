@@ -41,9 +41,10 @@ export class PetRenderer {
     const pet = CONFIG.pets.find(p => p.id === petId);
     const acc = pet?.accessories?.[accIndex];
     const vi  = colorVariant;
-    this._accHeadShift = pet?.headOffsets?.[vi] ?? 0;
-    this._accTopShift  = Array.isArray(acc?.topShift)  ? (acc.topShift[vi]  ?? 0) : (acc?.topShift  ?? 0);
-    this._accSideShift = Array.isArray(acc?.sideShift) ? (acc.sideShift[vi] ?? 0) : (acc?.sideShift ?? 0);
+    this._accHeadShift    = pet?.headOffsets?.[vi] ?? 0;
+    this._accTopShift     = Array.isArray(acc?.topShift)  ? (acc.topShift[vi]  ?? 0) : (acc?.topShift  ?? 0);
+    this._accSideShift    = Array.isArray(acc?.sideShift) ? (acc.sideShift[vi] ?? 0) : (acc?.sideShift ?? 0);
+    this._accTiltMult     = pet?.tiltMultiplier ?? 0;
   }
 
   stopAccessory() { this._accAnim = null; }
@@ -97,7 +98,8 @@ export class PetRenderer {
         extraY = (fd.spriteSourceSize?.y ?? 0) * scale;
         extraX = -(fd.spriteSourceSize?.x ?? 0) * scale;
       }
-      if (afd) _drawAccessoryAnchored(ctx, afd, fd, cx, cy, scale, this._accHeadShift || 0, this._accTopShift || 0, extraY, extraX, this._accSideShift || 0);
+      const tilt = (this._headOffsets?.[this._frame]?.rot ?? 0) * (this._accTiltMult || 0);
+      if (afd) _drawAccessoryAnchored(ctx, afd, fd, cx, cy, scale, this._accHeadShift || 0, this._accTopShift || 0, extraY, extraX, this._accSideShift || 0, tilt);
     }
   }
 
@@ -158,7 +160,7 @@ function _drawAnchored(ctx, fd, cx, cy, scale) {
  *         - (accSrcH / 2) * scale         ← center the acc source canvas above that
  *         + accSss.y * scale              ← apply the acc's own spriteSourceSize.y
  */
-function _drawAccessoryAnchored(ctx, afd, petFd, cx, cy, scale, headOffset = 0, topShift = 0, petSssYOffset = 0, petSssXOffset = 0, sideShift = 0) {
+function _drawAccessoryAnchored(ctx, afd, petFd, cx, cy, scale, headOffset = 0, topShift = 0, petSssYOffset = 0, petSssXOffset = 0, sideShift = 0, tilt = 0) {
   const petSrcH = petFd.sourceSize.h;
   const accSrcH = afd.sourceSize.h;
   const accSrcW = afd.sourceSize.w;
@@ -175,16 +177,21 @@ function _drawAccessoryAnchored(ctx, afd, petFd, cx, cy, scale, headOffset = 0, 
     - topShift * scale
     + petSssYOffset;
 
+  // Pivot point for tilt rotation: center-bottom of accessory (sits on head)
+  const pivotX = dx + dw / 2;
+  const pivotY = dy + dh;
+
+  ctx.save();
+  if (tilt) { ctx.translate(pivotX, pivotY); ctx.rotate(tilt); ctx.translate(-pivotX, -pivotY); }
+
   if (!afd.rotated) {
     ctx.drawImage(afd.image, afd.frame.x, afd.frame.y, afd.frame.w, afd.frame.h,
       dx, dy, dw, dh);
-    return;
+  } else {
+    ctx.translate(dx + dw / 2, dy + dh / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.drawImage(afd.image, afd.frame.x, afd.frame.y, afd.atlasW, afd.atlasH,
+      -dh / 2, -dw / 2, dh, dw);
   }
-
-  ctx.save();
-  ctx.translate(dx + dw / 2, dy + dh / 2);
-  ctx.rotate(-Math.PI / 2);
-  ctx.drawImage(afd.image, afd.frame.x, afd.frame.y, afd.atlasW, afd.atlasH,
-    -dh / 2, -dw / 2, dh, dw);
   ctx.restore();
 }

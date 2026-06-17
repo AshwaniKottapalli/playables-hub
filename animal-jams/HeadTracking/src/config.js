@@ -34,6 +34,7 @@ export const CONFIG = {
       atlases: ['texture-pet2-1', 'texture-pet2-2'],
       sound: 'assets/audio/pet-2-sound.mp3',
       headOffsets: [0, 0, 0],
+      tiltMultiplier: 0.35,
       accessories: [
         { label: 'Tiki Hat', topShift: [11,   2,  -8], sideShift: [-5, -13,  -5] },
         { label: 'Pharaoh',  topShift: [-22, -18, -34], sideShift: [-5,  -9,  -5] },
