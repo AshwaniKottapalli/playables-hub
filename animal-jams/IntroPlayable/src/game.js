@@ -215,14 +215,11 @@ export class Game {
 
     this._show(buildLoadingScreen());
 
-    // Kick off ALL background assets immediately (parallel with phase 1)
+    // Kick off remaining background assets immediately (parallel with phase 1)
     const phase2Atlases = [
       'texture-backgrounds-1', 'texture-backgrounds-2',
-      'texture-elements', 'texture-custom-elements', 'texture-particles',
-      'texture-pet-accessories',
-      'texture-pet1-1', 'texture-pet1-2',
-      'texture-pet2-1', 'texture-pet2-2',
-      'texture-pet3-1', 'texture-pet3-2',
+      'texture-custom-elements', 'texture-pet-accessories',
+      'texture-pet1-2', 'texture-pet2-2', 'texture-pet3-2',
     ];
     const phase2Imgs = [
       'assets/texture-backgrounds-2.jpeg',
@@ -234,10 +231,17 @@ export class Game {
       Promise.all(phase2Imgs.map(u => loadImg(u).catch(() => null))),
     ]);
 
-    // ── Phase 1: only 2 files needed to show box (~200KB) ───────────────────
+    // ── Phase 1: background + box + 3 pet idle atlases + elements/particles ──
+    // Everything the box reveal and select screen need — pets must be ready
+    // before they spring out of the box.
     const [bgImg, boxImg] = await Promise.all([
       loadImg('assets/texture-backgrounds-1.jpeg'),
       loadImg('assets/generated/boxSprite_fixed.webp'),
+      loadAtlas('texture-elements'),
+      loadAtlas('texture-particles'),
+      loadAtlas('texture-pet1-1'),   // cow idle-1
+      loadAtlas('texture-pet2-1'),   // fennec idle-1
+      loadAtlas('texture-pet3-1'),   // seal idle-1
     ]);
     this._bgImg = bgImg;
     this._boxSpriteImg = boxImg;
