@@ -1473,7 +1473,7 @@ var TL=[
     G.paused=true; // stay paused until first defender placed
     // BGM fades in quietly during intro
     setTimeout(function(){
-      if(G.playerInteracted&&bufs['bgm']){bgmGain.gain.value=0.08;playBGM('bgm');fadeBGM(0.32,3.5);}
+      if(bufs['bgm']&&!bgmNode){bgmGain.gain.value=0.08;playBGM('bgm');fadeBGM(0.32,3.5);}
     },200);
   }},
   // Wave 2 and boss fired from WAVE_TL, keyed on G.gameTime
@@ -1950,7 +1950,7 @@ function drawIntro(g){
     }
   }
 
-  if(t>B2+1.8) endIntro();
+  if(t>B2+0.3) endIntro();
 }
 
 function endIntro(){
@@ -2641,12 +2641,15 @@ function loop(ts){
     Q=Math.min(W/390,H/720);
     buildPath();
   }
-  // Audio init deferred to first user interaction (ad spec compliance)
+  // Preload audio assets (decode only, no playback — safe before interaction)
+  try{loadAllAudio(null);}catch(e){}
 
   // Fallback on first user touch
   function firstInteract(){
-    initAudio(); loadAllAudio(null);
-    if(bufs['bgm']&&!bgmNode) playBGM('bgm');
+    initAudio();
+    loadAllAudio(function(){
+      if(!bgmNode){bgmGain.gain.value=0.08;playBGM('bgm');fadeBGM(0.32,3.5);}
+    });
     document.removeEventListener('touchstart',firstInteract);
     document.removeEventListener('mousedown',firstInteract);
   }
