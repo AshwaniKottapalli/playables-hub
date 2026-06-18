@@ -121,7 +121,16 @@ body.intro-active #mute-btn,
 body.intro-active #ls-left,
 body.intro-active #ls-right{opacity:0!important;pointer-events:none!important;transition:opacity .4s ease}
 </style>
-</head>
+<style id="cta-tighten">
+#cta-content{width:86%!important;max-width:318px!important;padding:14px 18px 16px!important;gap:4px!important;background:linear-gradient(180deg,rgba(10,28,8,.82),rgba(6,16,5,.9))!important;border:1.5px solid rgba(139,240,64,.32)!important;border-radius:24px!important;box-shadow:0 14px 46px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06)!important;margin:auto!important}
+#cta-logo-img{width:150px!important;max-width:none!important;margin:2px 0 0!important}
+#cta-badge{margin:0 0 2px!important}
+#cta-divider{margin:6px 0 5px!important}
+#cta-fomo{margin-bottom:8px!important}
+#cta-pills{margin-bottom:10px!important}
+#cta-btn{width:100%!important;max-width:284px!important;margin-top:6px!important}
+#cta-sub{margin-top:7px!important}
+</style></head>
 <body>
 <div id="wrap">
   <div id="ls-left" style="display:none;position:absolute;top:0;left:0;bottom:0;z-index:20;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:14px 8px;background:linear-gradient(to right,#0d1a0a,#0b1f0a);border-right:2px solid rgba(240,192,64,.3)">
@@ -223,10 +232,21 @@ body.intro-active #ls-right{opacity:0!important;pointer-events:none!important;tr
 // MRAID
 // ============================================================
 var mraid = window.mraid || {isViewable:function(){return true;},open:function(u){window.open(u,'_blank');}};
-var STORE_URL = 'https://animaljam.com';
+var STORE_IOS = 'https://apps.apple.com/in/app/animal-jam/id1003820457';
+var STORE_ANDROID = 'https://play.google.com/store/apps/details?id=com.WildWorks.AnimalJamPlayWild&hl=en_IN';
+var STORE_FALLBACK = 'https://animaljam.com';
+function storeUrl(){
+  var ua = (navigator.userAgent || navigator.vendor || window.opera || '').toLowerCase();
+  // iPadOS 13+ reports as Mac — detect via touch
+  if(/iphone|ipad|ipod/.test(ua) || (/macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return STORE_IOS;
+  if(/android/.test(ua)) return STORE_ANDROID;
+  return STORE_FALLBACK;
+}
+var STORE_URL = STORE_FALLBACK; // back-compat
 function ctaClick(){
-  try{ mraid.open(STORE_URL); }
-  catch(e){ window.open(STORE_URL,'_blank'); }
+  var u = storeUrl();
+  try{ mraid.open(u); }
+  catch(e){ window.open(u,'_blank'); }
 }
 
 // ============================================================
@@ -327,10 +347,11 @@ var actx = null, muted = false, bgmNode = null, bgmGain = null, masterGain = nul
 var bufs = {};
 
 function initAudio(){
-  if(actx) return;
+  if(actx){ if(actx.state==='suspended'){ try{actx.resume();}catch(e){} } return; }
   actx = new (window.AudioContext || window.webkitAudioContext)();
   masterGain = actx.createGain(); masterGain.gain.value = muted ? 0 : 1; masterGain.connect(actx.destination);
   bgmGain = actx.createGain(); bgmGain.gain.value = 0.32; bgmGain.connect(masterGain);
+  if(actx.state==='suspended'){ try{actx.resume();}catch(e){} }
 }
 
 function loadAudioBuf(key, dataUri, cb){
@@ -344,7 +365,11 @@ function loadAudioBuf(key, dataUri, cb){
   );
 }
 
+var _audioLoadStarted=false,_audioLoaded=false,_audioCbs=[];
 function loadAllAudio(cb){
+  if(!actx){ if(cb) cb(); return; }
+  if(_audioLoadStarted){ if(cb){ if(_audioLoaded) cb(); else _audioCbs.push(cb); } return; }
+  _audioLoadStarted=true;
   var pairs = [
     ['bgm',AUD.bgm],['bgmFast',AUD.bgmFast],
     ['popup',AUD.popup],['win',AUD.win],['winHard',AUD.winHard],['unlock',AUD.unlock],
@@ -354,7 +379,7 @@ function loadAllAudio(cb){
     ['health',AUD.health],['timer',AUD.timer],['place',AUD.place],['grab',AUD.grab],['error',AUD.error],
   ];
   var pending = pairs.length;
-  function done(){ if(--pending<=0 && cb) cb(); }
+  function done(){ if(--pending<=0){ _audioLoaded=true; if(cb) cb(); _audioCbs.forEach(function(f){try{f();}catch(e){}}); _audioCbs=[]; } }
   pairs.forEach(function(p){ loadAudioBuf(p[0], p[1], done); });
 }
 
@@ -445,7 +470,7 @@ function scaleHUD(){
   document.documentElement.style.setProperty('--q', Q);
   // Scale CTA elements
   var ctaBtn=document.getElementById('cta-btn');
-  if(ctaBtn){ctaBtn.style.fontSize=Math.round(20*Q)+'px';ctaBtn.style.padding=Math.round(13*Q)+'px '+Math.round(38*Q)+'px';}
+  if(ctaBtn){ctaBtn.style.fontSize=Math.round(22*Q)+'px';ctaBtn.style.padding=Math.round(15*Q)+'px '+Math.round(40*Q)+'px';}
   var ctaFomo=document.getElementById('cta-fomo');
   if(ctaFomo) ctaFomo.style.fontSize=Math.round(14*Q)+'px';
   var ctaUnlock=document.getElementById('cta-unlock-text');
@@ -2642,14 +2667,13 @@ function loop(ts){
     buildPath();
   }
   // Preload audio assets (decode only, no playback — safe before interaction)
-  try{loadAllAudio(null);}catch(e){}
+  try{initAudio();loadAllAudio(null);}catch(e){}
 
   // Fallback on first user touch
   function firstInteract(){
     initAudio();
-    loadAllAudio(function(){
-      if(!bgmNode){bgmGain.gain.value=0.08;playBGM('bgm');fadeBGM(0.32,3.5);}
-    });
+    function startMusic(){ if(!bgmNode&&bufs['bgm']){bgmGain.gain.value=0.08;playBGM('bgm');fadeBGM(0.32,3.5);} }
+    if(bufs['bgm']){ startMusic(); } else { loadAllAudio(startMusic); }
     document.removeEventListener('touchstart',firstInteract);
     document.removeEventListener('mousedown',firstInteract);
   }
