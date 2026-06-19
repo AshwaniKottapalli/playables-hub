@@ -4,30 +4,33 @@ const queue = [];
 
 function _flush() {
   if (ctx?.state !== 'running') return;
-  queue.forEach(fn => fn());
-  queue.length = 0;
+  const pending = queue.splice(0);
+  pending.forEach(fn => fn());
 }
 
-function _resume() {
+async function _resume() {
   if (!ctx || ctx.state === 'running') return;
-  ctx.resume();
+  try {
+    await ctx.resume();
+    _flush(); // explicit flush — statechange not reliable on all iOS versions
+  } catch (_) {}
 }
 
 export function init() {
   ctx = new (window.AudioContext || window.webkitAudioContext)();
 
-  // Drain queue whenever context starts running
+  // Drain queue whenever context transitions to running
   ctx.addEventListener('statechange', _flush);
 
-  // Resume on any user gesture — NOT once:true so Safari re-suspends are handled
+  // Resume on any user gesture — persistent (not once) so iOS re-suspends are handled
   ['pointerdown', 'touchstart', 'keydown'].forEach(e =>
     document.addEventListener(e, _resume)
   );
 
-  // Suspend when hidden, resume when visible (spec + Safari compliance)
+  // Suspend when hidden, resume when visible
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
-      ctx.suspend();
+      ctx?.suspend();
     } else {
       _resume();
     }
@@ -39,10 +42,12 @@ export async function loadFile(name, url) {
     const res = await fetch(url);
     const arrayBuf = await res.arrayBuffer();
     buffers[name] = await ctx.decodeAudioData(arrayBuf);
-  } catch (e) {}
+  } catch (_) {}
 }
 
 export function play(name, { loop = false, volume = 1 } = {}) {
+  if (!ctx) return;
+
   const run = () => {
     const buf = buffers[name];
     if (!buf) return;
@@ -57,13 +62,17 @@ export function play(name, { loop = false, volume = 1 } = {}) {
     return src;
   };
 
-  if (!ctx) return;
-  if (ctx.state === 'running') return run();
-  queue.push(run);
-  _resume();
+  if (ctx.state === 'running') {
+    run();
+  } else {
+    queue.push(run);
+    _resume();
+  }
 }
 
 export function tone(freq, duration, type = 'sine', volume = 0.3) {
+  if (!ctx) return;
+
   const run = () => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -75,8 +84,11 @@ export function tone(freq, duration, type = 'sine', volume = 0.3) {
     osc.start();
     osc.stop(ctx.currentTime + duration);
   };
-  if (!ctx) return;
-  if (ctx.state === 'running') return run();
-  queue.push(run);
-  _resume();
+
+  if (ctx.state === 'running') {
+    run();
+  } else {
+    queue.push(run);
+    _resume();
+  }
 }

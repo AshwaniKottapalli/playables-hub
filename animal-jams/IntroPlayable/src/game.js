@@ -207,6 +207,12 @@ export class Game {
   async start() {
     Audio.init();
 
+    // Start audio loading immediately — buffers must be ready before first tap.
+    // iOS silently drops queued sounds if the buffer isn't decoded yet when
+    // the AudioContext resumes on first gesture.
+    Object.entries(CONFIG.audio).forEach(([n, u]) => Audio.loadFile(n, u).catch(() => {}));
+    CONFIG.pets.forEach((p, i) => Audio.loadFile(`pet-${i + 1}`, p.sound).catch(() => {}));
+
     // Sync CW/CH from actual canvas dimensions — resize() runs before _game exists
     // so setOrientation() is a no-op on first load; we must init here.
     CW = this._canvas.width;
@@ -259,9 +265,7 @@ export class Game {
     [this._bgCtaImg, this._logoImg] = p2Imgs;
     this._gameImgs = p2Imgs.slice(2);
 
-    // Audio last
-    Object.entries(CONFIG.audio).forEach(([n, u]) => Audio.loadFile(n, u).catch(() => {}));
-    CONFIG.pets.forEach((p, i) => Audio.loadFile(`pet-${i + 1}`, p.sound).catch(() => {}));
+    // Audio started loading at the top of start() — nothing to do here.
   }
 
   // ── Main loop ─────────────────────────────────────────────────────────────
