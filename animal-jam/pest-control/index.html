@@ -2484,17 +2484,39 @@ function drawPlacementIndicator(g){
   var hCol=gp?Math.floor((gp.x/MAP_W)*DCOLS):-1;
   var hRow=gp?Math.floor(((gp.y-MAP_TOP)/MAP_H)*DROWS):-1;
   var cellsPerDCol=GRID_COLS/DCOLS, cellsPerDRow=GRID_ROWS/DROWS;
+  // Pre-compute valid display cells
+  function isDispValid(r,c){
+    if(r<0||r>=DROWS||c<0||c>=DCOLS) return false;
+    var r0=Math.floor(r*cellsPerDRow),r1=Math.ceil((r+1)*cellsPerDRow);
+    var c0=Math.floor(c*cellsPerDCol),c1=Math.ceil((c+1)*cellsPerDCol);
+    for(var rr=r0;rr<r1;rr++)
+      for(var cc=c0;cc<c1;cc++)
+        if(PLACEMENT_GRID[rr]&&PLACEMENT_GRID[rr][cc]==='1') return true;
+    return false;
+  }
+  // Build display map with deduplication
+  var _dmap=[];
+  for(var _r=0;_r<DROWS;_r++){
+    _dmap[_r]=[];
+    for(var _c=0;_c<DCOLS;_c++){
+      if(!isDispValid(_r,_c)){_dmap[_r][_c]=false;continue;}
+      // Hide cell if: valid above AND it's part of a horizontal run AND the row above also has a horizontal run
+      // This removes the "lower duplicate" of 2-row horizontal bands
+      var validAbove=_r>0&&isDispValid(_r-1,_c);
+      var hRun=((_c>0&&isDispValid(_r,_c-1))||(_c<DCOLS-1&&isDispValid(_r,_c+1)));
+      var hRunAbove=validAbove&&((_c>0&&isDispValid(_r-1,_c-1))||(_c<DCOLS-1&&isDispValid(_r-1,_c+1)));
+      _dmap[_r][_c]=!(validAbove&&hRun&&hRunAbove);
+    }
+  }
   g.save();
   for(var dr=0;dr<DROWS;dr++){
     for(var dc=0;dc<DCOLS;dc++){
-      // Check if any underlying grid cell is valid
-      var anyValid=false;
-      var gcr0=Math.floor(dr*cellsPerDRow), gcr1=Math.ceil((dr+1)*cellsPerDRow);
-      var gcc0=Math.floor(dc*cellsPerDCol), gcc1=Math.ceil((dc+1)*cellsPerDCol);
-      outer: for(var gr2=gcr0;gr2<gcr1&&!anyValid;gr2++)
-        for(var gc2=gcc0;gc2<gcc1&&!anyValid;gc2++)
-          if(PLACEMENT_GRID[gr2]&&PLACEMENT_GRID[gr2][gc2]==='1') anyValid=true;
-      if(!anyValid) continue;
+      if(!_dmap[dr][dc]) continue;
+      // Edge filter: only show if at least one neighbour is invalid
+      var hasInvalidNeighbour=
+        !(dr>0&&_dmap[dr-1][dc])||!(dr<DROWS-1&&_dmap[dr+1][dc])||
+        !(dc>0&&_dmap[dr][dc-1])||!(dc<DCOLS-1&&_dmap[dr][dc+1]);
+      if(!hasInvalidNeighbour) continue;
       // use dr/dc as r/c for drawing
       var r=dr, c=dc, cw=dsw, ch=dsh;
       var isHov=dragging&&(c===hCol&&r===hRow);
