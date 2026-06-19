@@ -2672,8 +2672,12 @@ function loop(ts){
   // Fallback on first user touch
   function firstInteract(){
     initAudio();
-    function startMusic(){ if(!bgmNode&&bufs['bgm']){bgmGain.gain.value=0.08;playBGM('bgm');fadeBGM(0.32,3.5);} }
-    if(bufs['bgm']){ startMusic(); } else { loadAllAudio(startMusic); }
+    // Wait for AudioContext to fully resume (critical on iOS Safari)
+    var resumeP = actx && actx.state==='suspended' && actx.resume ? actx.resume() : Promise.resolve();
+    resumeP.then(function(){
+      function startMusic(){ if(!bgmNode&&bufs['bgm']){bgmGain.gain.value=0.08;playBGM('bgm');fadeBGM(0.32,3.5);} }
+      if(bufs['bgm']){ startMusic(); } else { loadAllAudio(startMusic); }
+    }).catch(function(){});
     document.removeEventListener('touchstart',firstInteract);
     document.removeEventListener('mousedown',firstInteract);
   }
