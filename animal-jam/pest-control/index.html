@@ -385,6 +385,7 @@ function loadAllAudio(cb){
 
 function sfx(key, vol){
   if(muted || !actx || !bufs[key]) return;
+  if(actx.state==='suspended') try{actx.resume();}catch(e){}
   var src = actx.createBufferSource();
   src.buffer = bufs[key];
   var g = actx.createGain(); g.gain.value = vol||0.65;
@@ -787,11 +788,27 @@ function gridCell(px, py){
 }
 
 function isValidZone(px,py){
-  if(!gridCell(px,py)) return false;
+  // Check at display-square resolution (matches what the player sees)
+  var _sq=landscapeOffset>0?40:Math.min(W,H)*0.10;
+  var DCV=landscapeOffset>0?GRID_COLS:Math.min(GRID_COLS,Math.round(MAP_W/_sq));
+  var DRV=landscapeOffset>0?GRID_ROWS:Math.min(GRID_ROWS,Math.round(MAP_H/_sq));
+  var dc=Math.floor((px/MAP_W)*DCV);
+  var dr=Math.floor(((py-MAP_TOP)/MAP_H)*DRV);
+  if(dc<0||dc>=DCV||dr<0||dr>=DRV) return false;
+  var cPC=GRID_COLS/DCV, cPR=GRID_ROWS/DRV;
+  var r0=Math.floor(dr*cPR),r1=Math.ceil((dr+1)*cPR);
+  var c0=Math.floor(dc*cPC),c1=Math.ceil((dc+1)*cPC);
+  var anyV=false;
+  for(var ri=r0;ri<r1&&!anyV;ri++)
+    for(var ci=c0;ci<c1&&!anyV;ci++)
+      if(PLACEMENT_GRID[ri]&&PLACEMENT_GRID[ri][ci]==='1') anyV=true;
+  if(!anyV) return false;
+  // No defender already occupying this display cell
+  var cx2=(dc+0.5)*(MAP_W/DCV), cy2=MAP_TOP+(dr+0.5)*(MAP_H/DRV);
   for(var j=0;j<G.defenders.length;j++){
     var d=G.defenders[j];
-    var dx=d.x-px, dy=d.y-py;
-    if(Math.sqrt(dx*dx+dy*dy)<42*Q) return false;
+    var ddx=d.x-cx2, ddy=d.y-cy2;
+    if(Math.sqrt(ddx*ddx+ddy*ddy)<(MAP_W/DCV)*0.7) return false;
   }
   return true;
 }
@@ -1276,18 +1293,20 @@ function endDrag(cx,cy){
   var _sq2=landscapeOffset>0?40:Math.min(W,H)*0.10;
   var _DCOLS=landscapeOffset>0?GRID_COLS:Math.min(GRID_COLS,Math.round(MAP_W/_sq2));
   var _DROWS=landscapeOffset>0?GRID_ROWS:Math.min(GRID_ROWS,Math.round(MAP_H/_sq2));
+  // cellsPerD must match drawPlacementIndicator exactly
+  var _cPC=GRID_COLS/_DCOLS, _cPR=GRID_ROWS/_DROWS;
   var _dcw=MAP_W/_DCOLS, _dch=MAP_H/_DROWS;
   var _dc=Math.max(0,Math.min(_DCOLS-1,Math.floor((gp.x/MAP_W)*_DCOLS)));
   var _dr=Math.max(0,Math.min(_DROWS-1,Math.floor(((gp.y-MAP_TOP)/MAP_H)*_DROWS)));
   var fcw=MAP_W/GRID_COLS, fch=MAP_H/GRID_ROWS;
-  var _cPerC=GRID_COLS/_DCOLS, _cPerR=GRID_ROWS/_DROWS;
+  var _cPerC=_cPC, _cPerR=_cPR;
   var snapped=null;
   var _gc0=Math.floor(_dc*_cPerC), _gr0=Math.floor(_dr*_cPerR);
   var _gc1=Math.ceil((_dc+1)*_cPerC), _gr1=Math.ceil((_dr+1)*_cPerR);
   outer2: for(var _gr=_gr0;_gr<_gr1;_gr++)
     for(var _gc=_gc0;_gc<_gc1;_gc++)
       if(PLACEMENT_GRID[_gr]&&PLACEMENT_GRID[_gr][_gc]==='1'){
-        snapped={x:(_gc+0.5)*fcw,y:MAP_TOP+(_gr+0.5)*fch}; break outer2;
+        snapped={x:(_dc+0.5)*(MAP_W/_DCOLS),y:MAP_TOP+(_dr+0.5)*(MAP_H/_DROWS)}; break outer2;
       }
   var px=snapped?snapped.x:gp.x, py=snapped?snapped.y:gp.y;
   if(isValidZone(px,py)){
@@ -1345,7 +1364,7 @@ document.addEventListener('touchmove',function(e){if(G.dragActive){var t=e.touch
 document.addEventListener('touchend',function(e){if(G.dragActive){var t=e.changedTouches[0];var p=evtToGame(t.clientX,t.clientY);endDrag(p.x,p.y);}});
 
 canvas.addEventListener('mousedown',function(){initAudio();loadAllAudio(null);});
-canvas.addEventListener('touchstart',function(){initAudio();loadAllAudio(null);},{passive:true});
+canvas.addEventListener('touchstart',function(){initAudio();loadAllAudio(null);if(actx&&actx.state==='suspended')try{actx.resume();}catch(e){}},{passive:true});
 
 // ============================================================
 // ============================================================
@@ -2508,10 +2527,21 @@ function drawPlacementIndicator(g){
       _dmap[_r][_c]=!(validAbove&&hRun&&hRunAbove);
     }
   }
+  // Mark cells occupied by placed defenders
+  function isCellOccupied(r,c){
+    var cx2=(c+0.5)*(MAP_W/DCOLS), cy2=MAP_TOP+(r+0.5)*(MAP_H/DROWS);
+    for(var j=0;j<G.defenders.length;j++){
+      var dd=G.defenders[j];
+      var ddx=dd.x-cx2, ddy=dd.y-cy2;
+      if(Math.sqrt(ddx*ddx+ddy*ddy)<(MAP_W/DCOLS)*0.7) return true;
+    }
+    return false;
+  }
   g.save();
   for(var dr=0;dr<DROWS;dr++){
     for(var dc=0;dc<DCOLS;dc++){
       if(!_dmap[dr][dc]) continue;
+      if(isCellOccupied(dr,dc)) continue;
       // Edge filter: only show if at least one neighbour is invalid
       var hasInvalidNeighbour=
         !(dr>0&&_dmap[dr-1][dc])||!(dr<DROWS-1&&_dmap[dr+1][dc])||
